@@ -1,0 +1,14 @@
+# specify the parameters for run_da
+
+num_data         : 6000            # number of steps to take in stimulus
+time_step        : 0.05            # time step of data
+num_dims         : 3               # number of state variables in model
+num_par          : 3               # number of parameters in the model to estimate
+observed_dim     : -1              # observed dimensions ex: [0, 3, 5] or -1 means all observed
+RM               : 1.0 / (0.5**2)  # measurement error value
+RF0              : 4.0e-6          # model error init cond
+alpha            : 1.5             # RF : RF0 * alpha**beta
+max_beta         : 100             # RF : RF0 * alpha**beta
+data_folder      : 'data/'         # path to data folder
+
+############# params ######################
