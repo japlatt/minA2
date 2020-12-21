@@ -14,4 +14,5 @@ alpha            : 2               # RF : RF0 * alpha**beta
 max_beta         : 10              # RF : RF0 * alpha**beta
 data_folder      : 'data/'         # path to data folder
 data_file        : 'FHN.npy'       # name of data file in data folder
-stim_file        : 'FHN_stim.npy'  # name of stim file in data folder
+stim_file        : 'FHN_stim.npy'  # name of stim file in data folder, if none comment out
+generate_twin    :  True           # generate data from def_dynamics

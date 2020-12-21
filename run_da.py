@@ -4,6 +4,7 @@ from sympy.utilities.lambdify import lambdify
 import yaml
 
 from def_dyn import dynamics
+from model import Action
 
 def get_dynamics(dynamics, specs):
     num_vars = specs['num_dims']
@@ -30,14 +31,21 @@ def read_specs(path_to_specs):
     with open(path_to_specs) as file:
         specs = yaml.load(file, Loader=yaml.FullLoader)
     return specs
+
+def read_bounds(path_to_bounds):
+    return np.loadtxt(path_to_bounds, delimiter=',')
+    
+def generate_twin(specs, f):
     
 
-
 if __name__ == '__main__':
-    specs = read_specs('specs.txt')
+    specs = read_specs('specs.yaml')
     f, fjacx, fjacp = get_dynamics(dynamics, specs)
 
-    optimizer = 'IPOPT'
+    if specs.get('generate_twin', False) is True:
+        generate_twin(specs, f)
+
+    optimizer = specs.get('optimizer','IPOPT')
 
     opt_options = { 
                     # max_iter : 10000, # Set the max number of iterations
@@ -74,11 +82,13 @@ if __name__ == '__main__':
               'Rf0'             : specs['RF0'],
               'Lidx'            : obs_dim,
               'dt_model'        : specs['time_step'],
-              'optimizer'       : ,
-              'opt_options'     : ,
-              'num_pars'        : ,
-              'num_dims'        : ,
-              'bounds'          : ,
+              'optimizer'       : optimizer,
+              'opt_options'     : opt_options,
+              'num_pars'        : specs['num_par'],
+              'num_dims'        : specs['num_dims'],
+              'bounds'          : read_bounds('params.txt'),
               }
 
+    action = Action(params)
+    action.min_A()
     

@@ -6,10 +6,11 @@ class Action:
     def __init__(self, params):
         self.name = params.get('name')
 
+        N_data = params['ndata'] if params['ndata'] > 0 else None
         self.set_data_fromfile(params['data_folder']+params['data_file'],
                                params.get('stim_file'),
                                nstart = params.get('nstart', 0),
-                               N = params.get('ndata'))
+                               N = N_data)
         self.action_init(params)
 
 
@@ -31,13 +32,6 @@ class Action:
         self.D              = params.get('num_dims')
         self.var_bounds     = params.get('bounds')[:self.D]
         self.par_bounds     = params.get('bounds')[self.D:]
-
-        # if dt_model == 1:
-        #     self.dt_model = self.dt_data
-        #     self.N_model = self.N_data
-        #     self.t_model = np.copy(self.t_data)
-        # else:
-            # assert(self.dt_model < self.dt_data and np.isclose(self.dt_data % self.dt_model,0))
 
 
         assert(type(dt_model) is int)
@@ -171,7 +165,7 @@ class Action:
 
         dfdx = np.sum(dfdx, axis = 0)/(self.D * (self.N_model - 1))
 
-        dfdp = np.zeros((self.N_model, self.D))
+        dfdp = np.zeros((self.N_model, self.NP))
         G = self.fjacp(X[0], self.t_model[0], p, self.stim[0])
         for i in range(self.N_model-1):
             Gp1 = self.fjacp(X[i+1], self.t_model[i+1], p, self.stim[i+1])
