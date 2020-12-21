@@ -137,8 +137,8 @@ class Action:
 
         dmdx = np.zeros((self.N_model, self.D))
         dmdx[::self.model_skip, self.Lidx] = self.Rm*(X[::self.model_skip, self.Lidx] - self.Y)
-        dmdx = np.sum(dmdx, axis = 0).flatten()
-        dmdx/=(len(self.Lidx) * self.N_data)
+        dmdx = dmdx.flatten()
+        dmdx/=(len(self.Lidx)/2 * self.N_data)
 
         diff_f = X[1:] - self.disc_trapezoid(X, p)
 
@@ -163,14 +163,15 @@ class Action:
                                  (np.eye(self.D) - 0.5*self.dt_model*Jp1),
                                  axis = 0)
 
-        dfdx = np.sum(dfdx, axis = 0)/(self.D * (self.N_model - 1))
+        dfdx = (dfdx/(self.D/2 * (self.N_model - 1))).flatten()
 
         dfdp = np.zeros((self.N_model, self.NP))
         G = self.fjacp(X[0], self.t_model[0], p, self.stim[0])
         for i in range(self.N_model-1):
             Gp1 = self.fjacp(X[i+1], self.t_model[i+1], p, self.stim[i+1])
-            dfdp[i] = np.sum(diff_f[i].reshape(-1, 1)*(G+Gp1), axis = 0)
-        dfdp = np.sum(dfdp, axis = 0)/(self.D * (self.N_model - 1))
+            dfdp[i] = self.rf*np.sum(diff_f[i].reshape(-1, 1)*(G+Gp1), axis = 0)
+            G = Gp1
+        dfdp = -self.dt_model*np.sum(dfdp, axis = 0)/(self.D * (self.N_model - 1))
         
         funcSens['obj'] = {'x' : dmdx+dfdx,
                            'p' : dfdp}
@@ -196,6 +197,7 @@ class Action:
         optProb.addObj("obj")
         opt = OPT(self.optimizer, options = self.opt_options)
         sol = opt(optProb, sens = self._grad_action)
+        return np.concatenate(sol.xStar['x'], sol.xStar['p']), sol.fStar
 
 
 
