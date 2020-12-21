@@ -1,8 +1,8 @@
 from sympy import *
 
-def dynamics(X, t, p, stim = None):
+def dynamics(x, t, p, stim = None):
     a, b, tau = p
-    v, w = X
+    v, w = x
     dvdt = (v-v**3/3 - w + stim)/tau
     dwdt = v - b*w + a
     return Matrix([dvdt, dwdt])

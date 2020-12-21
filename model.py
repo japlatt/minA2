@@ -1,61 +1,70 @@
 import numpy as np
+from pyoptsparse import Optimization, OPT
 
-class action:
+class Action:
 
     def __init__(self, params):
+        self.name = params.get('name')
+
+        self.set_data_fromfile(params['data_folder']+params['data_file'],
+                               params.get('stim_file'),
+                               nstart = params.get('nstart', 0),
+                               N = params.get('ndata'))
         self.action_init(params)
 
 
     def action_init(self, params):
         '''
         Args:
-            X0              :: time dependent state variables
-            P0              :: time independent parameters to be estimated
-            alpha
-            beta_array
-            RM
-            RF0
-            Lidx            :: indicies of measured vars         
-            bounds
-            optimization
         '''
         self.f              = params.get('f')
-        self.fjac           = params.get('fjac')
-        self.fhess          = params.get('fhess')
-        self.P0             = params.get('P0')
+        self.fjacx          = params.get('fjacx')
+        self.fjacp          = params.get('fjacp')
         alpha               = params.get('alpha')
         self.Rm             = params.get('Rm')
         self.Rf0            = params.get('Rf0')
         self.Lidx           = params.get('Lidx')
-        self.bound          = params.get('bounds')
-        self.dt_model       = params.get('dt_model')
-        self.optimization   = params.get('optimization', 'IPOPT')
+        dt_model            = params.get('dt_model')
+        self.optimizer      = params.get('optimizer', 'IPOPT')
+        self.opt_options    = params.get('opt_options')
+        self.NP             = params.get('num_par')
+        self.D              = params.get('num_dims')
+        self.var_bounds     = params.get('bounds')[:self.D]
+        self.par_bounds     = params.get('bounds')[self.D:]
 
-        if dt_model is None:
-            self.dt_model = self.dt_data
-            self.N_model = self.N_data
-            self.t_model = np.copy(self.t_data)
-        else:
-            assert(self.dt_model < self.dt_data and np.isclose(self.dt_data % self.dt_model,0))
-            self.dt_model = dt_model
-            self.N_model = (self.N_data - 1) * int(self.dt_data / self.dt_model) + 1
-            self.t_model = np.linspace(self.t_data[0], self.t_data[-1], self.N_model, dtype = np.float32)
+        # if dt_model == 1:
+        #     self.dt_model = self.dt_data
+        #     self.N_model = self.N_data
+        #     self.t_model = np.copy(self.t_data)
+        # else:
+            # assert(self.dt_model < self.dt_data and np.isclose(self.dt_data % self.dt_model,0))
+
+
+        assert(type(dt_model) is int)
+        self.dt_model = self.dt_data/dt_model
+        self.N_model = (self.N_data - 1) * dt_model + 1
+        self.t_model = np.linspace(self.t_data[0], self.t_data[-1], self.N_model, dtype = np.float32)
+        if self.stim is not None:
             self.stim = np.interp(self.t_model, self.t_data, self.stim).astype(np.float32)
 
-        self.model_skip = int(self.dt_data / self.dt_model)
-        self.NP = len(self.P0)
 
-        self.D = len(X0)
+
+
+        self.model_skip = dt_model
         self.Rf = RF0 * alpha**beta_array
 
-        self.minpaths = np.zeros((len(beta_array), self.N_model*self.D+self.NP), dtype=np.float32)
+        self.minpaths = np.zeros((len(beta_array)+1, self.N_model*self.D+self.NP), dtype=np.float32)
 
         self.X0 = np.zeros((self.N_model, self.D), dtype = np.float32)
-        for i, b in enumerate(bounds):
-            self.X0[:, i] = np.float32(np.random.uniform(low =9 b[0], high = b[1], size = self.N_model))
-            self.X0[::self.model_skip, Lidx] = self.Y
+        for i, b in enumerate(self.var_bounds):
+            self.X0[:, i] = np.float32(np.random.uniform(low =b[0], high = b[1], size = self.N_model))
+        self.X0[::self.model_skip, Lidx] = self.Y
 
-        self.minpaths[0] = np.concatenate(self.X0.flatten(), P0)
+        self.P0 = np.zeros(self.NP, dtype = np.float32)
+        for i, b in enumerate(self.par_bounds):
+            self.P0[i] = np.float32(np.random.uniform(low = b[0], high = b[1]))
+
+        self.minpaths[0] = np.concatenate(self.X0.flatten(), self.P0)
 
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
@@ -84,7 +93,123 @@ class action:
         else: self.stim = None
 
 
-    def min_A_step(self):
+
+    def min_A(self):
+        for i, rf in enumerate(self.Rf):
+            self.rf = rf
+            self.minpaths[i+1], Amin = self._min_A_step(i)
+            np.savetxt(self.name+'_min_paths.txt', self.minpaths, fmt = '%1.5f')
+
+    ##### PRIVATE FUNCTIONS #############
+
+    def disc_trapezoid(self, x, p):
+        """
+        Time discretization for the action using the trapezoid rule.
+        """
+        stim_n = self.stim[:-1]
+        stim_np1 = self.stim[1:]
+
+        f_n = np.array(self.f(x[:-1].T, self.t_model[:-1], p, stim_n)).T
+        f_np1 = np.array(self.f(x[1:].T, self.t_model[1:], p, stim_np1)).T
+
+        return x[:-1] + self.dt_model * (fn + f_np1) / 2.0
+
+    def _action(self, xdict):
+        x = xdict['x']
+        p = xdict['p']
+        funcs = {}
+
+        X = np.reshape(x, (self.N_model, self.D))
+
+        diff_m = X[::self.model_skip, self.Lidx] - self.Y
+        merr = self.Rm * np.linalg.norm(diff_m)**2
+        merr/=(len(self.Lidx) * self.N_data)
+
+        diff_f = X[1:] - self.disc_trapezoid(X, p)
+        ferr = self.rf*np.linalg.norm(diff_f)**2
+        ferr/=(self.D * (self.N_model - 1))
+
+        funcs['obj'] = merr+ferr
+
+        return funcs, False
+
+
+    def _grad_action(self, xdict, funcs):
+        x = xdict['x']
+        p = xdict['p']
+        X = np.reshape(x, (self.N_model, self.D))
+
+        funcSens = {}
+
+        dmdx = np.zeros((self.N_model, self.D))
+        dmdx[::self.model_skip, self.Lidx] = self.Rm*(X[::self.model_skip, self.Lidx] - self.Y)
+        dmdx = dmdx.flatten()
+        dmdx/=(len(self.Lidx) * self.N_data)
+
+        diff_f = X[1:] - self.disc_trapezoid(X, p)
+
+        J = np.zeros((self.D, self.D))
+        J = self.fjacx(X[0], self.t_model[0], p, self.stim[0])
+        dfdx = np.zeros((self.N_model, self.D))
+        dfdx[0] = self.rf*np.sum(-diff_f[0].reshape(-1, 1)*
+                                 (np.eye(self.D) + 0.5*self.dt_model*J),
+                                 axis = 0)
+        
+        for i in range(1, self.N_model-1):
+            Jp1 = self.fjacx(X[i], self.t_model[i], p, self.stim[i])
+            dfdx[i] = self.rf*np.sum(diff_f[i-1].reshape(-1, 1)*
+                                     (np.eye(self.D) - 0.5*self.dt_model*J),
+                                     axis = 0) + 
+                      self.rf*np.sum(-diff_f[i].reshape(-1, 1)*
+                                     (np.eye(self.D) + 0.5*self.dt_model*Jp1),
+                                     axis = 0)
+            J = Jp1
+
+        dfdx[-1] = self.rf*np.sum(diff_f[-1].reshape(-1, 1)*
+                                 (np.eye(self.D) - 0.5*self.dt_model*Jp1),
+                                 axis = 0)
+
+        dfdx/=(self.D * (self.N_model - 1))
+
+        dfdp = 
+        
+        funcSens['obj'] = {'x' : ,
+                           'p' : }
+
+        return funcSens, False
+
+
+    def _optimize(self, XP0):
+        optProb = Optimization("action", self._action)
+        optProb.addVarGroup("x",
+                             self.N_model*self.D,
+                             "c",
+                             lower = np.repeat(self.var_bounds[:, 0], self.N_model),
+                             upper = np.repeat(self.var_bounds[:, 1], self.N_model),
+                             value = XP0[:self.N_model*self.D])
+        optProb.addVarGroup("p",
+                            self.NP,
+                            "c",
+                            lower = self.par_bounds[:, 0],
+                            upper = self.par_bounds[:, 1],
+                            value = XP0[self.N_model*self.D:])
+
+        optProb.addObj("obj")
+        opt = OPT(self.optimizer, options = self.opt_options)
+        sol = opt(optProb, sens = self._grad_action)
+
+
+
+
+    def _min_A_step(self, beta_i):
+        self.beta_i = beta_i
+        XP0 = self.minpaths[beta_i]
+        XPmin, Amin = self._optimize(XP0)
+        return XPmin, Amin
+
+
+
+
 
 
 

@@ -1,0 +1,9 @@
+# state var bounds
+-3, 3 # voltage
+0, 3 # w
+
+
+# param bounds
+0, 2  # a
+0, 2  # b
+0, 2  # tau
