@@ -109,10 +109,10 @@ class Action:
         stim_n = self.stim[:-1]
         stim_np1 = self.stim[1:]
 
-        f_n = np.array(self.f(x[:-1].T, self.t_model[:-1], p, stim_n)).T
-        f_np1 = np.array(self.f(x[1:].T, self.t_model[1:], p, stim_np1)).T
+        fn = np.array(self.f(x[:-1].T, self.t_model[:-1], p, stim_n)).T
+        fnp1 = np.array(self.f(x[1:].T, self.t_model[1:], p, stim_np1)).T
 
-        return x[:-1] + self.dt_model * (fn + f_np1) / 2.0
+        return x[:-1] + self.dt_model * (fn + fnp1) / 2.0
 
     def _action(self, xdict):
         x = xdict['x']
@@ -143,7 +143,7 @@ class Action:
 
         dmdx = np.zeros((self.N_model, self.D))
         dmdx[::self.model_skip, self.Lidx] = self.Rm*(X[::self.model_skip, self.Lidx] - self.Y)
-        dmdx = dmdx.flatten()
+        dmdx = np.sum(dmdx, axis = 0).flatten()
         dmdx/=(len(self.Lidx) * self.N_data)
 
         diff_f = X[1:] - self.disc_trapezoid(X, p)
@@ -169,12 +169,17 @@ class Action:
                                  (np.eye(self.D) - 0.5*self.dt_model*Jp1),
                                  axis = 0)
 
-        dfdx/=(self.D * (self.N_model - 1))
+        dfdx = np.sum(dfdx, axis = 0)/(self.D * (self.N_model - 1))
 
-        dfdp = 
+        dfdp = np.zeros((self.N_model, self.D))
+        G = self.fjacp(X[0], self.t_model[0], p, self.stim[0])
+        for i in range(self.N_model-1):
+            Gp1 = self.fjacp(X[i+1], self.t_model[i+1], p, self.stim[i+1])
+            dfdp[i] = np.sum(diff_f[i].reshape(-1, 1)*(G+Gp1), axis = 0)
+        dfdp = np.sum(dfdp, axis = 0)/(self.D * (self.N_model - 1))
         
-        funcSens['obj'] = {'x' : ,
-                           'p' : }
+        funcSens['obj'] = {'x' : dmdx+dfdx,
+                           'p' : dfdp}
 
         return funcSens, False
 
