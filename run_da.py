@@ -35,8 +35,6 @@ def read_specs(path_to_specs):
 def read_bounds(path_to_bounds):
     return np.loadtxt(path_to_bounds, delimiter=',')
     
-def generate_twin(specs, f):
-    
 
 if __name__ == '__main__':
     specs = read_specs('specs.yaml')

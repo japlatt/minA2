@@ -89,10 +89,16 @@ class Action:
 
 
     def min_A(self):
+        f_mpath = open(self.name+'_min_paths.txt', 'bw+')
+        f_maction = open(self.name+'_min_action.txt', 'bw+')
         for i, rf in enumerate(self.Rf):
             self.rf = rf
             self.minpaths[i+1], Amin = self._min_A_step(i)
-            np.savetxt(self.name+'_min_paths.txt', self.minpaths, fmt = '%1.5f')
+            np.savetxt(f_mpath, self.minpaths[i+1], fmt = '%1.5f')
+            np.savetxt(f_maction, Amin, fmt = '%1.5f')
+            f_mpath.flush()
+            f_maction.flush()
+
 
     ##### PRIVATE FUNCTIONS #############
 
@@ -153,7 +159,7 @@ class Action:
             Jp1 = self.fjacx(X[i], self.t_model[i], p, self.stim[i])
             dfdx[i] = self.rf*np.sum(diff_f[i-1].reshape(-1, 1)*
                                      (np.eye(self.D) - 0.5*self.dt_model*J),
-                                     axis = 0) + 
+                                     axis = 0) + \
                       self.rf*np.sum(-diff_f[i].reshape(-1, 1)*
                                      (np.eye(self.D) + 0.5*self.dt_model*Jp1),
                                      axis = 0)

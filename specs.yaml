@@ -3,7 +3,6 @@
 
 name             : 'FHN'           # name for saving files
 num_data         : 6000            # number of data steps (int)
-num_pred         : 2000            # number of predict steps (int)
 start_data       : 0               # start index for data (int)
 time_step        : 1               # time steps of model per time step of data (int >= 1)
 num_dims         : 2               # number of state variables in model (int)
@@ -16,4 +15,3 @@ max_beta         : 10              # RF : RF0 * alpha**beta
 data_folder      : 'data/'         # path to data folder
 data_file        : 'FHN.npy'       # name of data file in data folder
 stim_file        : 'FHN_stim.npy'  # name of stim file in data folder, if none comment out
-generate_twin    :  True           # generate data from def_dynamics
