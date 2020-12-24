@@ -1,8 +1,11 @@
 from sympy import *
+import numpy as np
 
 def dynamics(x, t, p, stim = None):
-    a, b, tau = p
-    v, w = x
-    dvdt = (v-v**3/3 - w + stim)/tau
-    dwdt = v - b*w + a
-    return Matrix([dvdt, dwdt])
+    D = len(x)
+    dxdt = zeros(1, D)
+    for i in range(D-1):
+        dxdt[i] = (x[i+1] - x[i-2])*x[i-1] - x[i]
+    dxdt[-1] = (x[0] - x[-3])*x[-2]-x[-1]
+    dxdt = dxdt + p[0]*ones(1, D)
+    return Matrix([dxdt])

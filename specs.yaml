@@ -1,17 +1,17 @@
 # specify the parameters for run_da
 
 
-name             : 'FHN'           # name for saving files
-num_data         : 6000            # number of data steps (int)
-start_data       : 0               # start index for data (int)
+name             : 'Lor96_5D'      # name for saving files
+num_data         : 160             # number of data steps (int)
+start_data       : 400             # start index for data (int)
 time_step        : 1               # time steps of model per time step of data (int >= 1)
-num_dims         : 2               # number of state variables in model (int)
-num_par          : 3               # number of parameters in the model to estimate (int)
-observed_dim     : -1              # observed dimensions ex: [0, 3, 5] or -1 means all observed
-RM               : 1.0 / (0.5**2)  # measurement error value
-RF0              : 4.0e-2          # model error init cond
-alpha            : 2               # RF : RF0 * alpha**beta
-max_beta         : 10              # RF : RF0 * alpha**beta
+num_dims         : 5               # number of state variables in model (int)
+num_par          : 1               # number of parameters in the model to estimate (int)
+obs_dim          : [0, 2, 4]       # observed dimensions ex: [0, 3, 5] or -1 means all observed
+RM               : 4               # measurement error value
+RF0              : 0.01            # model error init cond
+alpha            : 2             # RF : RF0 * alpha**beta
+max_beta         : 22              # RF : RF0 * alpha**beta
 data_folder      : 'data/'         # path to data folder
-data_file        : 'FHN.npy'       # name of data file in data folder
-stim_file        : 'FHN_stim.npy'  # name of stim file in data folder, if none comment out
+data_file        : 'Lor96_5D.npy'       # name of data file in data folder
+# stim_file        : '.npy'  # name of stim file in data folder, if none comment out
