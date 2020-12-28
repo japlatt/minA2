@@ -1,45 +1,37 @@
 '''
 To Do:
-charm for multiple init cond
-smarter saving for multiple init cond
-make compatible with multiple experiments with samre functions
+automated plotting and prediction
 error checking
 comments
 
 test
--5D L96 with 2 obs variables
 -20D L96
 -NaKL Neuron
 '''
 
-import numpy as np
-import sympy as sym
-import yaml
-from numba import njit
+'''
+Command to run DA, X means replace with number
 
-from def_dyn import dynamics
+Single Machine  : python -m charmrun.start ++processPerHost X run_da.py +isomalloc_sync
+CPU Cluster     : python -m charmrun.start ++numHosts X ++processPerHost X rund_da.py ++nodelist.txt +isomalloc_sync
+'''
+
+import numpy as np
+import yaml
+from charm4py import charm
+from functools import partial
+
+from def_dyn import get_dynamics
 from model import Action
 
-def get_dynamics(dynamics, specs):
-    num_vars = specs['num_dims']
-    num_pars = specs['num_par']
 
-    x = np.array(sym.symbols('x:{:d}'.format(num_vars)))
-    p = np.array(sym.symbols('p:{:d}'.format(num_pars)))
-    stim = sym.symbols('stim')
-    t = sym.symbols('t')
-
-    f = dynamics(x, t, p, stim)
-    fjacx = dynamics(x, t, p, stim).jacobian(x)
-    fjacp = dynamics(x, t, p, stim).jacobian(p)
-
-    lam_f = sym.lambdify((x, t, p, stim), np.squeeze(f))
-    lam_fjacx = sym.lambdify((x, t, p, stim), fjacx)
-    lam_fjacp = sym.lambdify((x, t, p, stim), fjacp)
-
-    return njit(lam_f), njit(lam_fjacx), njit(lam_fjacp)
-
-
+######## Modify Here ##############
+path_to_specs = 'specs.yaml'
+path_to_params = 'params.txt'
+max_iter_per_step = 1000
+tol_per_step = 1e-8
+num_init_cond = 7
+###################################
 
 def read_specs(path_to_specs):
     with open(path_to_specs) as file:
@@ -48,17 +40,17 @@ def read_specs(path_to_specs):
 
 def read_bounds(path_to_bounds):
     return np.loadtxt(path_to_bounds, delimiter=',')
+
+
+def min_action(random_seed, params):
+    pid = random_seed.spawn_key[0]
+    action = Action(params, random_seed)
+    return action.min_A(pid)
     
 
-if __name__ == '__main__':
-    ######## Modify Here ##############
-    path_to_specs = 'specs.yaml'
-    path_to_params = 'params.txt'
-    ###################################
-
-
+def run(args):
     specs = read_specs(path_to_specs)
-    f, fjacx, fjacp = get_dynamics(dynamics, specs)
+    f, fjacx, fjacp = get_dynamics(specs)
 
     if specs.get('generate_twin', False) is True:
         generate_twin(specs, f)
@@ -67,9 +59,9 @@ if __name__ == '__main__':
 
     opt_options = { 
                     'print_level' : 0,
-                    'max_iter' : 1000, # Set the max number of iterations
+                    'max_iter' : max_iter_per_step, # Set the max number of iterations
                     # derivative_test : second-order, # set derivative test
-                    'tol' : 1.0e-10, # set termination criteria
+                    'tol' : tol_per_step, # set termination criteria
                     # 'dual_inf_tol' : 0.001,
                     # 'compl_inf_tol' : 1.0e-12,
                     # 'constr_viol_tol' : 1.0e-8,
@@ -109,6 +101,22 @@ if __name__ == '__main__':
               'bounds'          : read_bounds(path_to_params),
               }
 
-    action = Action(params)
-    action.min_A(0)
+    rng = np.random.default_rng()
+    ss = rng.bit_generator._seed_seq
+    init_seeds = ss.spawn(num_init_cond)
+    sol = np.array(charm.pool.map(partial(min_action, params = params), init_seeds), dtype=object)
+
+
+    np.savez(specs['data_folder']+specs['name']+'_results.npz',
+             path = sol[:, 0],
+             params = sol[:, 1],
+             action = sol[:, 2],
+             **specs
+             )
+
+    exit()
+
+if __name__ == '__main__':
+    charm.start(run)
+
     

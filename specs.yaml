@@ -7,7 +7,7 @@ start_data       : 400             # start index for data (int)
 time_step        : 1               # time steps of model per time step of data (int >= 1)
 num_dims         : 5               # number of state variables in model (int)
 num_par          : 1               # number of parameters in the model to estimate (int)
-obs_dim          : [0, 2, 4]       # observed dimensions ex: [0, 3, 5] or -1 means all observed
+obs_dim          : [0, 2]       # observed dimensions ex: [0, 3, 5] or -1 means all observed
 RM               : 4               # measurement error value
 RF0              : 0.01            # model error init cond
 alpha            : 2             # RF : RF0 * alpha**beta

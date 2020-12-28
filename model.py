@@ -1,10 +1,12 @@
 import numpy as np
 from pyoptsparse import Optimization, OPT
 from numba import njit
+import os
 
 class Action:
 
-    def __init__(self, params):
+    def __init__(self, params, seed):
+        self.rng = np.random.default_rng(seed)
         self.name = params.get('name')
         self.data_folder = params['data_folder']
 
@@ -44,24 +46,20 @@ class Action:
         if self.stim is not None:
             self.stim = np.interp(self.t_model, self.t_data, self.stim).astype(np.float32)
 
-
-
-
         self.model_skip = dt_model
         self.Rf = self.Rf0 * alpha**beta_array
 
-        self.minpaths = np.zeros((len(beta_array)+1, self.N_model*self.D+self.NP), dtype=np.float32)
-
         X0 = np.zeros((self.N_model, self.D), dtype = np.float32)
         for i, b in enumerate(self.var_bounds):
-            X0[:, i] = np.float32(np.random.uniform(low =b[0], high = b[1], size = self.N_model))
+            X0[:, i] = np.float32(self.rng.uniform(low =b[0], high = b[1], size = self.N_model))
         X0[::self.model_skip, self.Lidx] = self.Y
 
         P0 = np.zeros(self.NP, dtype = np.float32)
         for i, b in enumerate(self.par_bounds):
-            P0[i] = np.float32(np.random.uniform(low = b[0], high = b[1]))
+            P0[i] = np.float32(self.rng.uniform(low = b[0], high = b[1]))
 
-        self.minpaths[0] = np.concatenate((X0.flatten(), P0))
+        self.minpaths = np.concatenate((X0.flatten(), P0))
+        self.min_A_arr = np.zeros(len(beta_array))
 
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
@@ -92,29 +90,20 @@ class Action:
 
 
     def min_A(self, id):
-        f_mpath = open(self.data_folder+self.name+'_min_paths.txt', 'bw+')
-        f_mpars = open(self.data_folder+self.name+'_min_pars.txt', 'bw+')
-        f_maction = open(self.data_folder+self.name+'_min_action.txt', 'bw+')
-        for i, rf in enumerate(self.Rf):
-            self.rf = rf
-            self.minpaths[i+1], Amin = self._min_A_step(i)
+        #print data to file for debugging
+        with open(self.data_folder+self.name+'_{:d}.txt'.format(id), 'bw+') as file_temp:
+            for i, rf in enumerate(self.Rf):
+                self.rf = rf
+                self.minpaths, self.min_A_arr[i] = self._min_A_step(i)
+                print('param est: ', self.minpaths[self.D*self.N_model:])
+                print('Action level: ', self.min_A_arr[i])
+                np.savetxt(file_temp, self.minpaths.reshape(1, -1), fmt = '%1.5e')
+        
+        #remove when run sucessfully
+        os.remove(self.data_folder+self.name+'_{:d}.txt'.format(id))
+        return self.minpaths[:self.D*self.N_model], self.minpaths[self.D*self.N_model:], self.min_A_arr
 
-            path = self.minpaths[i+1][:self.D*self.N_model].reshape(1, -1)
-            pars = self.minpaths[i+1][self.D*self.N_model:].reshape(1, -1)
-
-            np.savetxt(f_mpath, path, fmt = '%1.8e')
-            f_mpath.write(b"\n")
-            np.savetxt(f_maction, [Amin], fmt = '%1.8e')
-            f_maction.write(b"\n")
-            np.savetxt(f_mpars, pars, fmt = '%1.8e')
-            f_mpars.write(b"\n")
-
-            f_mpath.flush()
-            f_maction.flush()
-            f_mpars.flush()
-
-
-    ##### PRIVATE FUNCTIONS #############
+    ############# PRIVATE FUNCTIONS #############
 
     def _action(self, xdict):
         x = xdict['x']
@@ -184,9 +173,7 @@ class Action:
         return np.concatenate((sol.xStar['x'], sol.xStar['p'])), sol.fStar
 
     def _min_A_step(self, beta_i):
-        self.beta_i = beta_i
-        XP0 = self.minpaths[beta_i]
-        XPmin, Amin = self._optimize(XP0)
+        XPmin, Amin = self._optimize(self.minpaths)
         return XPmin, Amin
 
     @staticmethod
@@ -199,7 +186,7 @@ class Action:
         dt_model = t_model[1] - t_model[0]
         fn = np.zeros((N_model-1, D))
         fnp1 = np.zeros((N_model-1, D))
-        if stim == None: stim = [None]*N_model
+        if stim == None: stim = np.empty(N_model)
 
         for i in range(N_model):
             eval_f = np.array(f(x[i], t_model[i], p, stim[i]))
@@ -213,22 +200,19 @@ class Action:
     @staticmethod
     @njit
     def _get_dfdx(X, p, fjacx, N_model, D, t_model, rf, diff_f, stim):
-        if stim == None: stim = [None]*N_model
+        if stim == None: stim = np.empty(N_model)
         dt_model = t_model[1] - t_model[0]
         dfdx = np.zeros((N_model, D))
         J = np.zeros((D, D))
         J = fjacx(X[0], t_model[0], p, stim[0])
         dfdx[0] = rf*np.sum(-diff_f[0].reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*J),
                              axis = 0)
-        df1 = np.sum(diff_f[0].reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J),
-                     axis = 0)
         for i in range(1, N_model-1):
             Jp1 = fjacx(X[i], t_model[i], p, stim[i])
-            df2 = np.sum(-diff_f[i].reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*Jp1),
-                         axis = 0)
+            df1 = np.sum(diff_f[i-1].reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J), axis = 0)
+            df2 = np.sum(-diff_f[i].reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*Jp1), axis = 0)
             dfdx[i] = rf*(df1 + df2)
             J = Jp1
-            df1 = df2
 
         dfdx[-1] = rf*np.sum(diff_f[-1].reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*Jp1),
                              axis = 0)
@@ -237,7 +221,7 @@ class Action:
     @staticmethod
     @njit
     def _get_dfdp(X, p, fjacp, N_model, D, t_model, rf, diff_f, stim):
-        if stim == None: stim = [None]*N_model
+        if stim == None: stim = np.empty(N_model)
         dfdp = np.zeros((N_model, len(p)))
         dt_model = t_model[1] - t_model[0]
 
