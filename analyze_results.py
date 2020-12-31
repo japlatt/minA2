@@ -1,5 +1,14 @@
+#!/usr/bin/env python
+'''
+Jason Platt (jplatt@ucsd.edu)
+Department of Physics
+University of California, San Diego
+2021
+'''
+
 import numpy as np
 from generate_data import RK4
+from def_dyn import get_dynamics
 import matplotlib.pyplot as plt
 from run_da import path_to_specs, read_specs
 import argparse
@@ -8,15 +17,15 @@ import os
 plt.style.use('seaborn')
 
 ######### May need to change to match your files #################
-def get_data(data_folder, name):
+def get_data(data_folder, name, datafile, twin):
     results = np.load(data_folder + name +'_results.npz', allow_pickle = True)
-    if twin: true_data = np.load(data_folder + 'all_' + name + '.npy')
-    obs_data = np.load(data_folder + name + '.npy')
+    true_data = np.load(data_folder + 'all_' + name + '.npy') if twin else None
+    obs_data = np.load(data_folder + datafile) if data_file.endswith('npy')\
+               else np.loadtxt(data_folder + data_file)
 
     # make images folder if does not exist
     folder_name = data_folder + name + '_images'
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
+    if not os.path.exists(folder_name): os.makedirs(folder_name)
     return results, true_data, obs_data
 ##################################################################
 
@@ -48,6 +57,16 @@ def plot_action(action):
     plt.xlabel('beta', fontsize = 16)
     fig1.savefig(folder_name +'/' + name + '_action_levels.pdf', bbox_inches = 'tight')
 
+def get_prediction(f, x0, time_arr, p, stim = None):
+    num_pred = len(time_arr)
+    dt = time_arr[1] - time_arr[0]
+    sol = np.zeros((num_pred+1, len(x0)))
+    sol[0] = x0
+    for i, t in enumerate(time_arr, 1):
+        sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim[i]))
+    return sol
+
+
 if __name__ == '__main__':
     args = get_args()
     specs = read_specs(path_to_specs)
@@ -60,21 +79,32 @@ if __name__ == '__main__':
     vars_to_plot = np.array(args.vars_to_plot) if args.vars_to_plot is not None else np.arange(specs['num_dims'])
     num_pred = args.num_pred # number of time steps to predict forward
 
-    results, true_data, obs_data = get_data(data_folder, name)
-
-    if specs.get('stim_file') is not None:
-        stim = np.load(data_folder + specs['stim_file'])[:, 1]
-    else: stim = None
+    results, true_data, obs_data = get_data(data_folder, name, specs['datafile'], twin)
 
     paths = results['path']
     params = results['params']
     action = results['action']
+    time_est = results['time']
+    dt = time_est[1]-time_est[0]
+
+    if specs.get('stim_file') is not None:
+        stim = np.load(data_folder + specs['stim_file'])[:, 1]
+        stim_time = stim[:, 0]
+        end_estimation = results['start_data']+results['num_data']
+        assert(len(stim) > end_estimation+num_pred+1), 'stim not long enough for num_pred'
+        stim = np.interp(np.linspace(0, num_pred+1, results['time_step']*(num_pred+1)),
+                         np.linspace(0, num_pred+1, num_pred+1),
+                         stim[end_estimation:end_estimation+num_pred+1])
+    else: stim = np.empty(num_pred)
     
     # fig 1 action plot
     plot_action(action)
 
     # fig 2 estimation and prediction for obs variables
     estimation = paths[min_action[0]].reshape(results['num_data'], results['num_dims'])
+    f, _, _ = get_dynamics(specs)
+    time_pred = np.linspace(time_est[-1], time_est[-1]+num_pred*dt, num_pred)
+    prediction = get_prediction(f, estimation[-1], time_pred, params, stim)
 
     set_vtp = set(vars_to_plot)
     set_ov = set(obs_vars)
@@ -82,9 +112,9 @@ if __name__ == '__main__':
     obs_plots = list(set_vtp.intersection(set_ov)).sort()
     unobs_plots = list(set_vtp.difference(set_ov)).sort()
 
-    fig_obs, ax_obs = plt.subplots(len(obs_plots), 1)
-    for i, ax in enumerate(ax_obs):
-        ax.plot()
+    # fig_obs, ax_obs = plt.subplots(len(obs_plots), 1)
+    # for i, ax in enumerate(ax_obs):
+    #     ax.plot()
 
 
 

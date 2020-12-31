@@ -1,3 +1,11 @@
+#!/usr/bin/env python
+'''
+Jason Platt (jplatt@ucsd.edu)
+Department of Physics
+University of California, San Diego
+2021
+'''
+
 '''
 To Do:
 automated plotting and prediction
@@ -10,7 +18,28 @@ test
 '''
 
 '''
-Command to run DA, X means replace with number
+Command to run DA, X means replace with number.  With pool, one process is used
+to schedule jobs so number of jobs run in parallel is (# hosts * process_per_host)-1.
+
+nodelist is run an application on multiple hosts (e.g. a network of workstations)
+by passing it a file containing the list of nodes (nodelist file).
+Hosts can be specified by IP address or host name.
+A couple examples:
+
+group mynodes
+    host 192.168.0.10
+    host 192.168.0.133
+    host myhost
+    host myhost2
+
+group boom-cluster:
+    host compute-0-7
+    host compute-0-8
+    host compute-0-9
+    host compute-0-10
+    host compute-0-11
+    host compute-0-12
+    host compute-0-13
 
 Single Machine  : python -m charmrun.start ++processPerHost X run_da.py +isomalloc_sync
 CPU Cluster     : python -m charmrun.start ++numHosts X ++processPerHost X rund_da.py ++nodelist.txt +isomalloc_sync
@@ -111,6 +140,7 @@ def run(args):
              path = sol[:, 0],
              params = sol[:, 1],
              action = sol[:, 2],
+             time = sol[:, 3]
              **specs
              )
 

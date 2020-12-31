@@ -1,11 +1,26 @@
+#!/usr/bin/env python
+'''
+Jason Platt (jplatt@ucsd.edu)
+Department of Physics
+University of California, San Diego
+2021
+'''
+
 import numpy as np
 from pyoptsparse import Optimization, OPT
 from numba import njit
 import os
 
 class Action:
+    '''Class to perform the action minimization routine'''
 
     def __init__(self, params, seed):
+        '''initialize the action object
+
+        Args:
+            params  : parameters including the dynamics and 
+            seed    : np seed sequence
+        '''
         self.rng = np.random.default_rng(seed)
         self.name = params.get('name')
         self.data_folder = params['data_folder']
@@ -20,8 +35,9 @@ class Action:
 
 
     def action_init(self, params):
-        '''
+        '''initialize params from dict
         Args:
+            params  : dictionary of params for action
         '''
         self.f              = params.get('f')
         self.fjacx          = params.get('fjacx')
@@ -63,11 +79,11 @@ class Action:
 
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
-        """
-        Load data & stimulus time series from file.
+        """Load data & stimulus time series from file.
+
         If data is a text file, must be in multi-column format with L+1 columns:
             t  y_1  y_2  ...  y_L
-        If a .npy archive, should contain an Nx(D+1) array with times in the
+        If a .npy archive, should contain an Nx(L+1) array with times in the
         zeroth element of each entry.
         Column/array formats should also be in the form t  s_1  s_2 ...
         """
@@ -90,6 +106,10 @@ class Action:
 
 
     def min_A(self, id):
+        '''Routine to run DA routine
+        Args:
+            id for saving
+        '''
         #print data to file for debugging
         with open(self.data_folder+self.name+'_{:d}.txt'.format(id), 'bw+') as file_temp:
             for i, rf in enumerate(self.Rf):
@@ -101,10 +121,13 @@ class Action:
         
         #remove when run sucessfully
         os.remove(self.data_folder+self.name+'_{:d}.txt'.format(id))
-        return self.minpaths[:self.D*self.N_model], self.minpaths[self.D*self.N_model:], self.min_A_arr
+        return self.minpaths[:self.D*self.N_model], self.minpaths[self.D*self.N_model:], self.min_A_arr, self.t_model
 
     ############# PRIVATE FUNCTIONS #############
 
+    '''
+    Compute the action.  Function for pyoptsparse
+    '''
     def _action(self, xdict):
         x = xdict['x']
         p = xdict['p']
@@ -124,6 +147,9 @@ class Action:
 
         return funcs, False
 
+    '''
+    Compute gradient of the action.  Function for pyoptsparse
+    '''
     def _grad_action(self, xdict, funcs):
         x = xdict['x']
         p = xdict['p']
@@ -152,6 +178,9 @@ class Action:
         return funcSens, False
 
 
+    '''
+    Run pyoptsparse routine to minimize action
+    '''
     def _optimize(self, XP0):
         optProb = Optimization("action", self._action)
         optProb.addVarGroup("x",
@@ -196,6 +225,11 @@ class Action:
                 fnp1[i-1] = eval_f
 
         return x[:-1] + dt_model * (fn + fnp1) / 2
+
+
+    '''
+    Helper functions for computing the action gradient
+    '''
 
     @staticmethod
     @njit

@@ -1,10 +1,32 @@
+#!/usr/bin/env python
+'''
+Jason Platt (jplatt@ucsd.edu)
+Department of Physics
+University of California, San Diego
+2021
+'''
+
 from sympy import *
 import numpy as np
 from numba import njit
 
 ################# MODIFY #################
+'''
+Specify the dynamical equations using sympy functions
+only.  The return value must be a sympy Matrix.
+'''
 
 def dynamics(x, t, p, stim = None):
+    '''The dynamical equations of the system
+    Args:
+        x    : The state variables
+        t    : Time
+        p    : Parameters
+        stim : Optional stimulus
+
+    Returns:
+        sympy Matrix containing dx/dt
+    '''
     D = len(x)
     dxdt = zeros(1, D)
     for i in range(D-1):
@@ -17,6 +39,16 @@ def dynamics(x, t, p, stim = None):
 
 
 def get_dynamics(specs):
+    '''Compute the jacobian of the dynamics and compile
+        to machine code
+    Args:
+        specs   : dictionary containing the spec file
+
+    Returns:
+        f       : dynamical equations
+        fjacx   : df/dx
+        fjacp   : df/dp
+    '''
     num_vars = specs['num_dims']
     num_pars = specs['num_par']
 
@@ -34,3 +66,6 @@ def get_dynamics(specs):
     lam_fjacp = lambdify((x, t, p, stim), fjacp)
 
     return njit(lam_f), njit(lam_fjacx), njit(lam_fjacp)
+
+
+

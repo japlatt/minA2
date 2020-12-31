@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+'''
+Jason Platt (jplatt@ucsd.edu)
+Department of Physics
+University of California, San Diego
+2021
+'''
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -14,11 +23,11 @@ def RK4(f, r, t, dt, params = None):
 
 if __name__ == '__main__':
     ########### MODIFY HERE ###########
-    dt = 0.025
-    num_data = 1000
-    x0 = 20*np.random.rand(5)-10
-    p = (8.17,)
-    noise_std = np.sqrt(0.25)
+    dt = 0.025 # time step of the model
+    num_data = 1000 # number of time steps to generate
+    x0 = 20*np.random.rand(5)-10 # initial condition
+    p = (8.17,) # parameters, must be in tuple
+    noise_std = np.sqrt(0.25) # add noise to the data
     ####################################
     
     specs = read_specs(path_to_specs)
@@ -28,13 +37,13 @@ if __name__ == '__main__':
     if specs.get('stim_file') is not None:
         stim = np.load(specs['data_folder']+specs['stim_file'])[:, 1]
     else:
-        stim = None
+        stim = np.empty(num_data)
 
     time_arr = np.arange(0, num_data*dt, dt)
     sol = np.zeros((num_data+1, specs['num_dims']))
     sol[0] = x0
     for i, t in enumerate(time_arr, 1):
-        sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim))
+        sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim[i]))
 
     plt.plot(time_arr, sol[:-1, 0])
     plt.show()
