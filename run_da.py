@@ -8,9 +8,8 @@ University of California, San Diego
 
 '''
 To Do:
-automated plotting and prediction
 error checking
-comments
+readme
 
 test
 -20D L96
@@ -135,12 +134,11 @@ def run(args):
     init_seeds = ss.spawn(num_init_cond)
     sol = np.array(charm.pool.map(partial(min_action, params = params), init_seeds), dtype=object)
 
-
     np.savez(specs['data_folder']+specs['name']+'_results.npz',
              path = sol[:, 0],
              params = sol[:, 1],
              action = sol[:, 2],
-             time = sol[:, 3]
+             time = sol[0, 3],
              **specs
              )
 

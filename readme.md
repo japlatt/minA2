@@ -11,11 +11,7 @@ I've only tried to install IPOPT on a linux operating system.  On windows you ca
 Note: pyoptsparse needs to be installed with IPOPT.  This can be done most easily in the 
 following way.
 1. Install gcc and gfortran (this will be os dependent).  On Linux sudo apt-get install gcc g++ gfortran git patch wget pkg-config liblapack-dev libmetis-dev
-2. https://github.com/OpenMDAO/build_pyoptsparse
-
-
-
-
-
+2. Install [pyoptsparse](https://mdolab-pyoptsparse.readthedocs-hosted.com/en/latest/optimizers/pyipopt.html) with IPOPT.  Steps are install IPOPT, then in ~/.bashrc write "export IPOPT_DIR=path/to/ipopt/dir" and "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:$IPOPT_DIR/lib".
+3. Alternatively this bash script does the process for you: https://github.com/OpenMDAO/build_pyoptsparse
 
 [^1]: Highly recommend installing [miniconda](https://docs.conda.io/en/latest/miniconda.html) to manage packages.  Will have to install scientific computing packages: numpy, scipy, sympy, matplotlib.

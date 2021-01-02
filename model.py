@@ -8,6 +8,7 @@ University of California, San Diego
 
 import numpy as np
 from pyoptsparse import Optimization, OPT
+# import ipopt
 from numba import njit
 import os
 
@@ -115,6 +116,7 @@ class Action:
             for i, rf in enumerate(self.Rf):
                 self.rf = rf
                 self.minpaths, self.min_A_arr[i] = self._min_A_step(i)
+                print('iteration: {:d}'.format(i))
                 print('param est: ', self.minpaths[self.D*self.N_model:])
                 print('Action level: ', self.min_A_arr[i])
                 np.savetxt(file_temp, self.minpaths.reshape(1, -1), fmt = '%1.5e')

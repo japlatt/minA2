@@ -39,11 +39,11 @@ if __name__ == '__main__':
     else:
         stim = np.empty(num_data)
 
-    time_arr = np.arange(0, num_data*dt, dt)
+    time_arr = np.linspace(0, num_data*dt, num_data)
     sol = np.zeros((num_data+1, specs['num_dims']))
     sol[0] = x0
     for i, t in enumerate(time_arr, 1):
-        sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim[i]))
+        sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim[i-1]))
 
     plt.plot(time_arr, sol[:-1, 0])
     plt.show()
