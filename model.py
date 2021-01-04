@@ -7,8 +7,7 @@ University of California, San Diego
 '''
 
 import numpy as np
-from pyoptsparse import Optimization, OPT
-# import ipopt
+import ipopt
 from numba import njit
 import os
 
@@ -78,6 +77,12 @@ class Action:
         self.minpaths = np.concatenate((X0.flatten(), P0))
         self.min_A_arr = np.zeros(len(beta_array))
 
+        lower_var = np.repeat(self.var_bounds[:, 0], self.N_model)
+        upper_var = np.repeat(self.var_bounds[:, 1], self.N_model)
+        lower_par = self.par_bounds[:, 0]
+        upper_par = self.par_bounds[:, 1]
+        self.bounds = list(zip(np.concatenate((lower_var, lower_par)), np.concatenate((upper_var, upper_par))))
+
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
         """Load data & stimulus time series from file.
@@ -130,12 +135,11 @@ class Action:
     '''
     Compute the action.  Function for pyoptsparse
     '''
-    def _action(self, xdict):
-        x = xdict['x']
-        p = xdict['p']
-        funcs = {}
+    def _action(self, x):
+        X = x[:self.N_model*self.D]
+        p = x[self.N_model*self.D:]
 
-        X = np.reshape(x, (self.N_model, self.D))
+        X = np.reshape(X, (self.N_model, self.D))
 
         diff_m = X[::self.model_skip, self.Lidx] - self.Y
         merr = self.Rm * np.linalg.norm(diff_m)**2
@@ -145,19 +149,16 @@ class Action:
         ferr = self.rf*np.linalg.norm(diff_f)**2
         ferr/=(self.D * (self.N_model - 1))
 
-        funcs['obj'] = merr+ferr
-
-        return funcs, False
+        return merr+ferr
 
     '''
     Compute gradient of the action.  Function for pyoptsparse
     '''
-    def _grad_action(self, xdict, funcs):
-        x = xdict['x']
-        p = xdict['p']
-        X = np.reshape(x, (self.N_model, self.D))
+    def _grad_action(self, x):
+        X = x[:self.N_model*self.D]
+        p = x[self.N_model*self.D:]
 
-        funcSens = {}
+        X = np.reshape(X, (self.N_model, self.D))
 
         diff_m = X[::self.model_skip, self.Lidx] - self.Y
 
@@ -173,35 +174,17 @@ class Action:
 
         dfdp = self._get_dfdp(X, p, self.fjacp, self.N_model, self.D,
                               self.t_model, self.rf, diff_f, self.stim)
-        
-        funcSens['obj'] = {'x' : dmdx+dfdx,
-                           'p' : dfdp}
 
-        return funcSens, False
-
-
-    '''
-    Run pyoptsparse routine to minimize action
-    '''
+        return np.concatenate((dmdx+dfdx, dfdp))
+    
     def _optimize(self, XP0):
-        optProb = Optimization("action", self._action)
-        optProb.addVarGroup("x",
-                             self.N_model*self.D,
-                             "c",
-                             lower = np.repeat(self.var_bounds[:, 0], self.N_model),
-                             upper = np.repeat(self.var_bounds[:, 1], self.N_model),
-                             value = XP0[:self.N_model*self.D])
-        optProb.addVarGroup("p",
-                            self.NP,
-                            "c",
-                            lower = self.par_bounds[:, 0],
-                            upper = self.par_bounds[:, 1],
-                            value = XP0[self.N_model*self.D:])
-
-        optProb.addObj("obj")
-        opt = OPT(self.optimizer, options = self.opt_options)
-        sol = opt(optProb, sens = self._grad_action)
-        return np.concatenate((sol.xStar['x'], sol.xStar['p'])), sol.fStar
+        res = ipopt.minimize_ipopt(self._action,
+                                   XP0,
+                                   jac=self._grad_action,
+                                   bounds=self.bounds,
+                                   options=self.opt_options)
+        xstar = res.get('x')
+        return xstar, self._action(xstar)
 
     def _min_A_step(self, beta_i):
         XPmin, Amin = self._optimize(self.minpaths)
