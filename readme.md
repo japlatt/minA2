@@ -13,9 +13,9 @@ The simplest way to install these packages is to use anaconda using the followin
 3. conda install seaborn
 4. conda install -c conda-forge greenlet
 5. conda install -c anaconda cython
-5. pip3 install charm4py
+6. pip3 install charm4py
 
-Note: charm4py requires c++11 (gcc > 4.8.1, 2011 release) support in order to compile as well as ld compiled with --sysroot enabled.  For those on the boom cluster this can present an issue because the compiler is (at the time of writing) over 10 years out of date.  Of course you can install [gcc](https://superuser.com/questions/986949/upgrading-gcc-for-a-specific-user-account) and [binutils](https://www.gnu.org/software/binutils/) from source yourself.  If you have root access then obviously that is the simplest options.  Without root access my workaround involved using conda to do the installation:
+Note: charm4py requires c++11 (gcc > 4.8.1, 2011 release) support in order to compile as well as ld compiled with --sysroot enabled.  For those on the boom cluster this can present an issue because the compiler is (at the time of writing) over 10 years out of date.  Of course you can install [gcc](https://superuser.com/questions/986949/upgrading-gcc-for-a-specific-user-account) and [dependencies](https://gcc.gnu.org/wiki/InstallingGCC) and [binutils](https://www.gnu.org/software/binutils/) from source yourself.  If you have root access then obviously that is the simplest options.  Without root access my workaround involved using conda to do the installation:
 1. conda install gcc_linux-64
 2. conda install gxx_linux-64
 3. conda install gfortran_linux-64
