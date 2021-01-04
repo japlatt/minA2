@@ -125,6 +125,7 @@ class Action:
                 print('param est: ', self.minpaths[self.D*self.N_model:])
                 print('Action level: ', self.min_A_arr[i])
                 np.savetxt(file_temp, self.minpaths.reshape(1, -1), fmt = '%1.5e')
+                file_temp.flush()
         
         #remove when run sucessfully
         os.remove(self.data_folder+self.name+'_{:d}.txt'.format(id))
