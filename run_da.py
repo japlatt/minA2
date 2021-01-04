@@ -20,7 +20,10 @@ test
 Command to run DA, X means replace with number.  With pool, one process is used
 to schedule jobs so number of jobs run in parallel is (# hosts * process_per_host)-1.
 
-nodelist is run an application on multiple hosts (e.g. a network of workstations)
+Single Machine  : python -m charmrun.start ++processPerHost X run_da.py +isomalloc_sync
+CPU Cluster     : python -m charmrun.start ++numHosts X ++processPerHost X run_da.py ++nodelist nodelist.txt +isomalloc_sync
+
+nodelist is to run an application on multiple hosts (e.g. a network of workstations)
 by passing it a file containing the list of nodes (nodelist file).
 Hosts can be specified by IP address or host name.
 A couple examples:
@@ -39,9 +42,6 @@ group boom-cluster:
     host compute-0-11
     host compute-0-12
     host compute-0-13
-
-Single Machine  : python -m charmrun.start ++processPerHost X run_da.py +isomalloc_sync
-CPU Cluster     : python -m charmrun.start ++numHosts X ++processPerHost X rund_da.py ++nodelist.txt +isomalloc_sync
 '''
 
 import numpy as np
@@ -54,11 +54,12 @@ from model import Action
 
 
 ######## Modify Here ##############
-path_to_specs = 'specs.yaml'
-path_to_params = 'params.txt'
+path_to_folder = 'Runs/Lor96_20D/'
+path_to_specs = path_to_folder+'specs.yaml'
+path_to_params = path_to_folder+'params.txt'
 max_iter_per_step = 1000
 tol_per_step = 1e-8
-num_init_cond = 7
+num_init_cond = 50
 ###################################
 
 def read_specs(path_to_specs):

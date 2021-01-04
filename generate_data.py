@@ -25,13 +25,14 @@ if __name__ == '__main__':
     ########### MODIFY HERE ###########
     dt = 0.025 # time step of the model
     num_data = 1000 # number of time steps to generate
-    x0 = 20*np.random.rand(5)-10 # initial condition
+    x0 = 20*np.random.rand(20)-10 # initial condition
     p = (8.17,) # parameters, must be in tuple
     noise_std = np.sqrt(0.25) # add noise to the data
     ####################################
     
     specs = read_specs(path_to_specs)
     dyn, _, _ = get_dynamics(specs)
+    if not os.path.exists(specs['data_folder']): os.makedirs(specs['data_folder'])
 
     f = lambda r, t, params: np.array(dyn(r, t, *params))
     if specs.get('stim_file') is not None:
