@@ -1,7 +1,7 @@
 # Installation Instructions
 
 ### Python Dependencies
-- Python 3.7+ [^1]
+- Python 3.7+ <sup>[1]</sup>:
 - [charm4py](https://charm4py.readthedocs.io/en/latest/install.html)
 - [numba](https://numba.readthedocs.io/en/stable/user/installing.html)
 - [cyipopt](https://github.com/mechmotum/cyipopt)
@@ -22,7 +22,8 @@ Note: charm4py requires c++11 (gcc > 4.8.1) support in order to compile as well 
 4. ln -s /path/to/anaconda/bin/x86_64-conda_cos6-linux-gnu-gcc /path/to/anaconda/bin/gcc
 5. ln -s /path/to/anaconda/bin/x86_64-conda_cos6-linux-gnu-g++ /path/to/anaconda/bin/g++
 6. In ~/.bash_profile add "export PATH=/path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/bin:/path/to/anaconda/bin:/path/to/anaconda/compiler_compat:$PATH"
-7. Now run pip3 install charm4py[^2]
+7. Now run pip3 install charm4py<sup>[2]</sup>
 
-[^1]: Highly recommend installing [miniconda](https://docs.conda.io/en/latest/miniconda.html) to manage packages.  Will have to have standard packages: numpy, scipy, sympy, matplotlib, yaml
-[^2]: I had a weird error when compiling charm4py that seems to be an error in the conda version of gcc.  If you get this same error abour redefining align_alloc then go to vim /path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/include/stdlib.h and comment out the whole function "static inline void* aligned_alloc (size_t al, size_t sz)".  Lines 513-523.
+<a>1</a>: Highly recommend installing [miniconda](https://docs.conda.io/en/latest/miniconda.html) to manage packages.  Will have to have standard packages: numpy, scipy, sympy, matplotlib, yaml
+
+<a>2</a>: I had a weird error when compiling charm4py that seems to be an error in the conda version of gcc.  If you get this same error abour redefining align_alloc then go to vim /path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/include/stdlib.h and comment out the whole function "static inline void* aligned_alloc (size_t al, size_t sz)".  Lines 513-523.
