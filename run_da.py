@@ -9,7 +9,7 @@ University of California, San Diego
 '''
 To Do:
 error checking
-readme
+input array of Rfs
 
 test
 -20D L96
@@ -46,7 +46,6 @@ group boom-cluster:
 
 import numpy as np
 import yaml
-from charm4py import charm
 from functools import partial
 
 from def_dyn import get_dynamics
@@ -54,12 +53,12 @@ from model import Action
 
 
 ######## Modify Here ##############
-path_to_folder = 'Runs/Lor96_20D/'
+path_to_folder = 'Runs/NaKL/'
 path_to_specs = path_to_folder+'specs.yaml'
 path_to_params = path_to_folder+'params.txt'
 max_iter_per_step = 1000
-tol_per_step = 1e-8
-num_init_cond = 50
+tol_per_step = 1e-7
+num_init_cond = 3
 ###################################
 
 def read_specs(path_to_specs):
@@ -77,7 +76,7 @@ def min_action(random_seed, params):
     return action.min_A(pid)
     
 
-def run(args):
+def run(Args):
     specs = read_specs(path_to_specs)
     f, fjacx, fjacp = get_dynamics(specs)
 
@@ -103,6 +102,7 @@ def run(args):
                     # 'linear_system_scaling' : none,
                     # 'bound_relax_factor' : 0
                     'output_file' : specs['data_folder']+'IPOPT.out',
+                    # 'print_timing_statistics': 'yes',
                     }
 
 
@@ -134,6 +134,7 @@ def run(args):
     ss = rng.bit_generator._seed_seq
     init_seeds = ss.spawn(num_init_cond)
     sol = np.array(charm.pool.map(partial(min_action, params = params), init_seeds), dtype=object)
+    # sol = min_action(init_seeds[0], params)
 
     np.savez(specs['data_folder']+specs['name']+'_results.npz',
              path = sol[:, 0],
@@ -146,6 +147,8 @@ def run(args):
     exit()
 
 if __name__ == '__main__':
+    from charm4py import charm
     charm.start(run)
+    # run(None)
 
     

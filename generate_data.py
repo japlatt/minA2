@@ -9,6 +9,7 @@ University of California, San Diego
 
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
 from run_da import path_to_specs, read_specs
 from def_dyn import get_dynamics
@@ -24,10 +25,17 @@ def RK4(f, r, t, dt, params = None):
 if __name__ == '__main__':
     ########### MODIFY HERE ###########
     dt = 0.025 # time step of the model
-    num_data = 1000 # number of time steps to generate
-    x0 = 20*np.random.rand(20)-10 # initial condition
-    p = (8.17,) # parameters, must be in tuple
-    noise_std = np.sqrt(0.25) # add noise to the data
+    num_data = 10000 # number of time steps to generate
+    x0 = np.random.rand(4) # initial condition
+    p = (1, 120, 20, 0.3, 50, -77, -54.4,\
+        -40, -60, -55, 15, -15, 30, 0.1,\
+        0.4, 1, 7, 1, 5,) # parameters, must be in tuple
+    noise_std = np.sqrt(0.01) # add noise to the data
+    # dt = 0.025 # time step of the model
+    # num_data = 1000 # number of time steps to generate
+    # x0 = 20*np.random.rand(5)-10 # initial condition
+    # p = (8.17,) # parameters, must be in tuple
+    # noise_std = np.sqrt(0.25) # add noise to the data
     ####################################
     
     specs = read_specs(path_to_specs)

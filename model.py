@@ -42,10 +42,10 @@ class Action:
         self.f              = params.get('f')
         self.fjacx          = params.get('fjacx')
         self.fjacp          = params.get('fjacp')
-        alpha               = params.get('alpha')
+        alpha               = np.float64(params.get('alpha'))
         beta_array          = np.arange(1, params['max_beta']+1, 1)
         self.Rm             = float(params.get('Rm'))
-        self.Rf0            = params.get('Rf0')
+        Rf0                 = np.float64(params.get('Rf0'))
         self.Lidx           = params.get('Lidx')
         dt_model            = params.get('dt_model')
         self.optimizer      = params.get('optimizer', 'IPOPT')
@@ -58,31 +58,27 @@ class Action:
         assert(type(dt_model) is int)
         self.dt_model = self.dt_data/dt_model
         self.N_model = (self.N_data - 1) * dt_model + 1
-        self.t_model = np.linspace(self.t_data[0], self.t_data[-1], self.N_model, dtype = np.float32)
+        self.t_model = np.linspace(self.t_data[0], self.t_data[-1], self.N_model)
         if self.stim is not None:
-            self.stim = np.interp(self.t_model, self.t_data, self.stim).astype(np.float32)
+            self.stim = np.interp(self.t_model, self.t_data, self.stim)
 
         self.model_skip = dt_model
-        self.Rf = self.Rf0 * alpha**beta_array
+        self.Rf = self._gen_rf(Rf0, alpha, beta_array)
 
-        X0 = np.zeros((self.N_model, self.D), dtype = np.float32)
-        for i, b in enumerate(self.var_bounds):
-            X0[:, i] = np.float32(self.rng.uniform(low =b[0], high = b[1], size = self.N_model))
-        X0[::self.model_skip, self.Lidx] = self.Y
+        X0 = self._get_X0()
 
-        P0 = np.zeros(self.NP, dtype = np.float32)
+        P0 = np.zeros(self.NP)
         for i, b in enumerate(self.par_bounds):
-            P0[i] = np.float32(self.rng.uniform(low = b[0], high = b[1]))
+            P0[i] = self.rng.uniform(low = b[0], high = b[1])
 
         self.minpaths = np.concatenate((X0.flatten(), P0))
         self.min_A_arr = np.zeros(len(beta_array))
 
-        lower_var = np.repeat(self.var_bounds[:, 0], self.N_model)
-        upper_var = np.repeat(self.var_bounds[:, 1], self.N_model)
+        lower_var = np.tile(self.var_bounds[:, 0], self.N_model)
+        upper_var = np.tile(self.var_bounds[:, 1], self.N_model)
         lower_par = self.par_bounds[:, 0]
         upper_par = self.par_bounds[:, 1]
         self.bounds = list(zip(np.concatenate((lower_var, lower_par)), np.concatenate((upper_var, upper_par))))
-
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
         """Load data & stimulus time series from file.
@@ -95,7 +91,6 @@ class Action:
         """
         
         data = np.load(data_file) if data_file.endswith('npy') else np.loadtxt(data_file)
-        data = data.astype(np.float32)
 
         self.N_data = N if N is not None else data.shape[0]
         self.t_data = data[nstart:nstart+self.N_data, 0]
@@ -103,12 +98,11 @@ class Action:
         self.Y = data[nstart:nstart+self.N_data, 1:]
 
         if stim_file is not None:
-            self.stim = np.load(stim_file)[:self.N_data, 1:] if stim_file.endswith('npy')\
-                                           else np.loadtxt(stim_file)[:self.N_data, 1:]
-            self.stim = np.squeeze(self.stim.T).astype(np.float32)
+            self.stim = np.load(stim_file)[nstart:nstart+self.N_data, 1:] if stim_file.endswith('npy')\
+                                           else np.loadtxt(stim_file)[nstart:nstart+self.N_data, 1:]
+            self.stim = np.squeeze(self.stim.T)
 
         else: self.stim = None
-
 
 
     def min_A(self, id):
@@ -133,6 +127,20 @@ class Action:
 
     ############# PRIVATE FUNCTIONS #############
 
+    def _get_X0(self):
+        X0 = np.zeros((self.N_model, self.D))
+        for i, b in enumerate(self.var_bounds):
+            X0[:, i] = self.rng.uniform(low =b[0], high = b[1], size = self.N_model)
+        X0[::self.model_skip, self.Lidx] = self.Y
+        return X0
+
+    def _gen_rf(self, Rf0, alpha, beta):
+        Rf0 = np.array(Rf0) if isinstance(Rf0, list) else Rf0*np.ones(self.D)
+        alpha = np.array(alpha) if isinstance(alpha, list) else alpha*np.ones(self.D)
+        assert(len(alpha) == self.D and len(alpha) == len(Rf0))
+        for b in beta:
+            yield Rf0*alpha**b
+
     '''
     Compute the action.  Function for pyoptsparse
     '''
@@ -147,7 +155,7 @@ class Action:
         merr/=(len(self.Lidx) * self.N_data)
 
         diff_f = X[1:] - self.disc_trapezoid(self.f, X, p, self.stim, self.t_model)
-        ferr = self.rf*np.linalg.norm(diff_f)**2
+        ferr = np.linalg.norm(np.sqrt(self.rf)*diff_f)**2
         ferr/=(self.D * (self.N_model - 1))
 
         return merr+ferr
@@ -201,7 +209,7 @@ class Action:
         dt_model = t_model[1] - t_model[0]
         fn = np.zeros((N_model-1, D))
         fnp1 = np.zeros((N_model-1, D))
-        if stim == None: stim = np.empty(N_model)
+        if stim is None: stim = np.empty(N_model)
 
         for i in range(N_model):
             eval_f = np.array(f(x[i], t_model[i], p, stim[i]))
@@ -220,35 +228,35 @@ class Action:
     @staticmethod
     @njit
     def _get_dfdx(X, p, fjacx, N_model, D, t_model, rf, diff_f, stim):
-        if stim == None: stim = np.empty(N_model)
+        if stim is None: stim = np.empty(N_model)
         dt_model = t_model[1] - t_model[0]
         dfdx = np.zeros((N_model, D))
         J = np.zeros((D, D))
         J = fjacx(X[0], t_model[0], p, stim[0])
-        dfdx[0] = rf*np.sum(-diff_f[0].reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*J),
+        dfdx[0] = np.sum(-(rf*diff_f[0]).reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*J),
                              axis = 0)
         for i in range(1, N_model-1):
             Jp1 = fjacx(X[i], t_model[i], p, stim[i])
-            df1 = np.sum(diff_f[i-1].reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J), axis = 0)
-            df2 = np.sum(-diff_f[i].reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*Jp1), axis = 0)
-            dfdx[i] = rf*(df1 + df2)
+            df1 = np.sum((rf*diff_f[i-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J), axis = 0)
+            df2 = np.sum(-(rf*diff_f[i]).reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*Jp1), axis = 0)
+            dfdx[i] = (df1 + df2)
             J = Jp1
 
-        dfdx[-1] = rf*np.sum(diff_f[-1].reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*Jp1),
+        dfdx[-1] = np.sum((rf*diff_f[-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*Jp1),
                              axis = 0)
         return (dfdx/(D/2 * (N_model - 1))).flatten()
 
     @staticmethod
     @njit
     def _get_dfdp(X, p, fjacp, N_model, D, t_model, rf, diff_f, stim):
-        if stim == None: stim = np.empty(N_model)
+        if stim is None: stim = np.empty(N_model)
         dfdp = np.zeros((N_model, len(p)))
         dt_model = t_model[1] - t_model[0]
 
         G = fjacp(X[0], t_model[0], p, stim[0])
         for i in range(N_model-1):
             Gp1 = fjacp(X[i+1], t_model[i+1], p, stim[i+1])
-            dfdp[i] = rf*np.sum(diff_f[i].reshape(-1, 1)*(G+Gp1), axis = 0)
+            dfdp[i] = np.sum((rf*diff_f[i]).reshape(-1, 1)*(G+Gp1), axis = 0)
             G = Gp1
         dfdp = -dt_model*np.sum(dfdp, axis = 0)/(D * (N_model - 1))
         return dfdp

@@ -96,7 +96,7 @@ if __name__ == '__main__':
 
     if specs.get('stim_file') is not None:
         stim = np.load(data_folder + specs['stim_file'])[:, 1]
-        stim_time = stim[:, 0]
+        stim_time = np.load(data_folder + specs['stim_file'])[:, 0]
         end_estimation = results['start_data']+results['num_data']
         assert(len(stim) > end_estimation+num_pred+1), 'stim not long enough for num_pred'
         stim = np.interp(np.linspace(0, num_pred+1, results['time_step']*(num_pred+1)),
@@ -123,6 +123,7 @@ if __name__ == '__main__':
 
     colors = sns.color_palette('dark')
     fig_obs, ax_obs = plt.subplots(len(obs_plots), 1, sharex = True)
+    if len(obs_plots): ax_obs = [ax_obs]
     for i, ax in enumerate(ax_obs):
         ax.plot(time_est, estimation[:, obs_plots[i]], color = colors[0], label = 'DA')
         ax.plot(time_pred, prediction[:, obs_plots[i]], color = colors[0])
