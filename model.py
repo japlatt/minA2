@@ -7,9 +7,14 @@ University of California, San Diego
 '''
 
 import numpy as np
-import ipopt
 from numba import njit
 import os
+
+try: import ipopt
+except: pass
+
+try: from snopt import snopta, SNOPT_options
+except: pass
 
 class Action:
     '''Class to perform the action minimization routine'''
@@ -231,20 +236,21 @@ class Action:
         if stim is None: stim = np.empty(N_model)
         dt_model = t_model[1] - t_model[0]
         dfdx = np.zeros((N_model, D))
-        J = np.zeros((D, D))
+
         J = fjacx(X[0], t_model[0], p, stim[0])
         dfdx[0] = np.sum(-(rf*diff_f[0]).reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*J),
                              axis = 0)
-        for i in range(1, N_model-1):
-            Jp1 = fjacx(X[i], t_model[i], p, stim[i])
-            df1 = np.sum((rf*diff_f[i-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J), axis = 0)
-            df2 = np.sum(-(rf*diff_f[i]).reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*Jp1), axis = 0)
-            dfdx[i] = (df1 + df2)
-            J = Jp1
 
-        dfdx[-1] = np.sum((rf*diff_f[-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*Jp1),
+        for i in range(1, N_model-1):
+            J = fjacx(X[i], t_model[i], p, stim[i])
+            df1 = np.sum((rf*diff_f[i-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J), axis = 0)
+            df2 = np.sum(-(rf*diff_f[i]).reshape(-1, 1)*(np.eye(D) + 0.5*dt_model*J), axis = 0)
+            dfdx[i] = (df1 + df2)
+
+        J = fjacx(X[-1], t_model[-1], p, stim[-1])
+        dfdx[-1] = np.sum((rf*diff_f[-1]).reshape(-1, 1)*(np.eye(D) - 0.5*dt_model*J),
                              axis = 0)
-        return (dfdx/(D/2 * (N_model - 1))).flatten()
+        return (2*dfdx/(D * (N_model - 1))).flatten()
 
     @staticmethod
     @njit

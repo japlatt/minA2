@@ -14,6 +14,7 @@ from run_da import path_to_specs, read_specs
 import argparse
 import os
 import seaborn as sns
+from collections.abc import Sequence
 
 plt.style.use('seaborn')
 
@@ -92,6 +93,11 @@ if __name__ == '__main__':
     params = results['params']
     action = results['action']
     time_est = results['time']
+
+    if not isinstance(action, Sequence):
+        action = [action]
+        params = [params]
+        paths =  [paths]
     dt = time_est[1]-time_est[0]
 
     if specs.get('stim_file') is not None:
@@ -123,7 +129,7 @@ if __name__ == '__main__':
 
     colors = sns.color_palette('dark')
     fig_obs, ax_obs = plt.subplots(len(obs_plots), 1, sharex = True)
-    if len(obs_plots): ax_obs = [ax_obs]
+    if len(obs_plots) == 1: ax_obs = [ax_obs]
     for i, ax in enumerate(ax_obs):
         ax.plot(time_est, estimation[:, obs_plots[i]], color = colors[0], label = 'DA')
         ax.plot(time_pred, prediction[:, obs_plots[i]], color = colors[0])
