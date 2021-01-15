@@ -6,15 +6,16 @@ University of California, San Diego
 2021
 '''
 
-import numpy as np
-from generate_data import RK4
 from def_dyn import get_dynamics
+from utils import read_specs, RK4
+from run_da import path_to_specs
+
+import numpy as np
 import matplotlib.pyplot as plt
-from run_da import path_to_specs, read_specs
 import argparse
 import os
 import seaborn as sns
-from collections.abc import Sequence
+from collections.abc import Iterable
 
 plt.style.use('seaborn')
 
@@ -94,7 +95,7 @@ if __name__ == '__main__':
     action = results['action']
     time_est = results['time']
 
-    if not isinstance(action, Sequence):
+    if not isinstance(action, Iterable):
         action = [action]
         params = [params]
         paths =  [paths]

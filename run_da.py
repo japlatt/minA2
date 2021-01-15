@@ -9,10 +9,9 @@ University of California, San Diego
 '''
 To Do:
 error checking
-input array of Rfs
+add comments
 
 test
--20D L96
 -NaKL Neuron
 '''
 
@@ -30,26 +29,19 @@ A couple examples:
 
 group mynodes
     host 192.168.0.10
-    host 192.168.0.133
     host myhost
-    host myhost2
 
 group boom-cluster:
     host compute-0-7
     host compute-0-8
-    host compute-0-9
-    host compute-0-10
-    host compute-0-11
-    host compute-0-12
-    host compute-0-13
 '''
 
 import numpy as np
-import yaml
 from functools import partial
 
 from def_dyn import get_dynamics
 from model import Action
+from utils import read_specs, read_bounds
 
 
 ######## Modify Here ##############
@@ -57,18 +49,11 @@ path_to_folder = 'Runs/NaKL/'
 path_to_specs = path_to_folder+'specs.yaml'
 path_to_params = path_to_folder+'params.txt'
 max_iter_per_step = 1000
-tol_per_step = 1e-7
-num_init_cond = 3
+tol_per_step = 1e-8
+num_init_cond = 1
 ###################################
 
-def read_specs(path_to_specs):
-    with open(path_to_specs) as file:
-        specs = yaml.load(file, Loader=yaml.FullLoader)
-    return specs
-
-def read_bounds(path_to_bounds):
-    return np.loadtxt(path_to_bounds, delimiter=',')
-
+charm = True if num_init_cond > 1 else 0
 
 def min_action(random_seed, params):
     pid = random_seed.spawn_key[0]
@@ -84,26 +69,27 @@ def run(Args):
         generate_twin(specs, f)
 
     optimizer = specs.get('optimizer','IPOPT')
+    print_level = 0 if charm else 5
 
-    opt_options = { 
-                    'print_level' : 0,
-                    'max_iter' : max_iter_per_step, # Set the max number of iterations
-                    # derivative_test : second-order, # set derivative test
-                    'tol' : tol_per_step, # set termination criteria
-                    # 'dual_inf_tol' : 0.001,
-                    # 'compl_inf_tol' : 1.0e-12,
-                    # 'constr_viol_tol' : 1.0e-8,
-                    # 'acceptable_tol' : 1.0e-10,
-                    # 'nlp_scaling_method' : none, #turn off the NLP scaling
-                    # 'mehrotra_algorithm' : yes,
-                    'linear_solver' : 'mumps',
-                    # 'mu_strategy' : 'adaptive',
-                    # 'adaptive_mu_globalization' : 'never-monotone-mode',
-                    # 'linear_system_scaling' : none,
-                    # 'bound_relax_factor' : 0
-                    'output_file' : specs['data_folder']+'IPOPT.out',
-                    # 'print_timing_statistics': 'yes',
-                    }
+    if optimizer == 'IPOPT':
+        opt_options = { 
+                        'print_level' : print_level,
+                        'max_iter' : max_iter_per_step, # Set the max number of iterations
+                        # 'derivative_test' : 'first-order', # set derivative test
+                        'tol' : tol_per_step, # set termination criteria
+                        'linear_solver' : 'mumps',
+                        'output_file' : specs['data_folder']+'IPOPT.out'
+                        }
+    if optimizer == 'SNOPT':
+        from snopt import SNOPT_options
+        opt_options = SNOPT_options()
+        opt_options.setOption('Print filename', specs['data_folder']+'SNOPT.out')
+        opt_options.setOption('Iteration limit', max_iter_per_step)
+        opt_options.setOption('Optimality tolerance', tol_per_step)
+        if charm:
+            opt_options.setOption('Major print level', 0)
+            opt_options.setOption('Minor print level', 0)
+            opt_options.setOption('Verbose',False)
 
 
     obs_dim = specs['obs_dim'] if specs['obs_dim'] != -1 else np.arange(specs['num_dims'])
@@ -133,22 +119,32 @@ def run(Args):
     rng = np.random.default_rng()
     ss = rng.bit_generator._seed_seq
     init_seeds = ss.spawn(num_init_cond)
-    sol = np.array(charm.pool.map(partial(min_action, params = params), init_seeds), dtype=object)
-    # sol = min_action(init_seeds[0], params)
-
-    np.savez(specs['data_folder']+specs['name']+'_results.npz',
-             path = sol[:, 0],
-             params = sol[:, 1],
-             action = sol[:, 2],
-             time = sol[0, 3],
-             **specs
-             )
+    if charm:
+        sol = np.array(charm.pool.map(partial(min_action, params = params), init_seeds), dtype=object)
+        np.savez(specs['data_folder']+specs['name']+'_results.npz',
+                path = np.array(sol[:, 0]),
+                params = np.array(sol[:, 1]),
+                action = np.array(sol[:, 2]),
+                time = np.array(sol[0, 3]),
+                **specs
+                )
+    else:
+        sol = min_action(init_seeds[0], params)
+        np.savez(specs['data_folder']+specs['name']+'_results.npz',
+                path = sol[0],
+                params = sol[1],
+                action = sol[2],
+                time = sol[3],
+                **specs
+                )
 
     exit()
 
 if __name__ == '__main__':
-    from charm4py import charm
-    charm.start(run)
-    # run(None)
+    if charm:
+        from charm4py import charm
+        charm.start(run)
+    else:
+        run(None)
 
     

@@ -11,16 +11,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 
-from run_da import path_to_specs, read_specs
+from utils import read_specs, RK4
+from run_da import path_to_specs
 from def_dyn import get_dynamics
-
-def RK4(f, r, t, dt, params = None):
-    k1 = dt*f(r,t, params)
-    k2 = dt*f(r+k1/2, t+dt/2, params)
-    k3 = dt*f(r+k2/2, t+dt/2, params)
-    k4 = dt*f(r+k3, t+dt, params)
-    return r + (k1+2*k2+2*k3+k4)/6
-
 
 if __name__ == '__main__':
     ########### MODIFY HERE ###########
@@ -31,6 +24,7 @@ if __name__ == '__main__':
         -40, -60, -55, 15, -15, 30, 0.1,\
         0.4, 1, 7, 1, 5,) # parameters, must be in tuple
     noise_std = np.sqrt(1e-5) # add noise to the data
+    
     # dt = 0.025 # time step of the model
     # num_data = 1000 # number of time steps to generate
     # x0 = 20*np.random.rand(5)-10 # initial condition

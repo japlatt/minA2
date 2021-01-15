@@ -14,4 +14,4 @@ alpha            : 2             # RF : RF0 * alpha**beta
 max_beta         : 22              # RF : RF0 * alpha**beta
 data_folder      : 'Runs/Lor96_5D/data/'         # path to data folder
 data_file        : 'Lor96_5D.npy'       # name of data file in data folder (generate data creates file with this name)
-# stim_file        : '.npy'  # name of stim file in data folder, if none comment out
+optimizer        : 'SNOPT'

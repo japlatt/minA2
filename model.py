@@ -9,12 +9,14 @@ University of California, San Diego
 import numpy as np
 from numba import njit
 import os
+import scipy
+from utils import RK4
 
 try: import ipopt
-except: pass
+except: print('ipopt not installed')
 
-try: from snopt import snopta, SNOPT_options
-except: pass
+try: from snopt import snoptb
+except: print('snopt not installed')
 
 class Action:
     '''Class to perform the action minimization routine'''
@@ -49,16 +51,18 @@ class Action:
         self.fjacp          = params.get('fjacp')
         alpha               = np.float64(params.get('alpha'))
         beta_array          = np.arange(1, params['max_beta']+1, 1)
-        self.Rm             = float(params.get('Rm'))
-        Rf0                 = np.float64(params.get('Rf0'))
         self.Lidx           = params.get('Lidx')
+        Rf0                 = np.float64(params.get('Rf0'))
+        Rm                  = params.get('Rm')
+        self.Rm             = np.array(Rm) if isinstance(Rm, list) else Rm*np.ones(len(self.Lidx))
         dt_model            = params.get('dt_model')
-        self.optimizer      = params.get('optimizer', 'IPOPT')
+        self.optimizer      = params.get('optimizer')
         self.opt_options    = params.get('opt_options')
         self.NP             = params.get('num_pars')
         self.D              = params.get('num_dims')
         self.var_bounds     = params.get('bounds')[:self.D]
         self.par_bounds     = params.get('bounds')[self.D:]
+        self.notLidx        = np.array([x for x in list(range(self.D)) if x not in self.Lidx])
 
         assert(type(dt_model) is int)
         self.dt_model = self.dt_data/dt_model
@@ -70,11 +74,12 @@ class Action:
         self.model_skip = dt_model
         self.Rf = self._gen_rf(Rf0, alpha, beta_array)
 
-        X0 = self._get_X0()
 
         P0 = np.zeros(self.NP)
         for i, b in enumerate(self.par_bounds):
             P0[i] = self.rng.uniform(low = b[0], high = b[1])
+
+        X0 = self._get_X0(P0)
 
         self.minpaths = np.concatenate((X0.flatten(), P0))
         self.min_A_arr = np.zeros(len(beta_array))
@@ -83,7 +88,7 @@ class Action:
         upper_var = np.tile(self.var_bounds[:, 1], self.N_model)
         lower_par = self.par_bounds[:, 0]
         upper_par = self.par_bounds[:, 1]
-        self.bounds = list(zip(np.concatenate((lower_var, lower_par)), np.concatenate((upper_var, upper_par))))
+        self.bounds = np.array(list(zip(np.concatenate((lower_var, lower_par)), np.concatenate((upper_var, upper_par)))))
 
     def set_data_fromfile(self, data_file, stim_file=None, nstart=0, N=None):
         """Load data & stimulus time series from file.
@@ -132,13 +137,19 @@ class Action:
 
     ############# PRIVATE FUNCTIONS #############
 
-    def _get_X0(self):
+    def _get_X0(self, P0):
+        stim = self.stim if self.stim is not None else np.empty(self.N_model)
+        f = lambda r, t, params: np.array(self.f(r, t, *params))
         X0 = np.zeros((self.N_model, self.D))
         for i, b in enumerate(self.var_bounds):
             X0[:, i] = self.rng.uniform(low =b[0], high = b[1], size = self.N_model)
         X0[::self.model_skip, self.Lidx] = self.Y
+        for k in range(self.N_model-1):
+            X0[k+1,self.notLidx]  = RK4(f, X0[k], self.t_model[k], self.dt_model,
+                                        params = (P0, stim[i-1]))[self.notLidx]
+        X0[::self.model_skip, self.Lidx] = self.Y
         return X0
-
+    
     def _gen_rf(self, Rf0, alpha, beta):
         Rf0 = np.array(Rf0) if isinstance(Rf0, list) else Rf0*np.ones(self.D)
         alpha = np.array(alpha) if isinstance(alpha, list) else alpha*np.ones(self.D)
@@ -156,7 +167,7 @@ class Action:
         X = np.reshape(X, (self.N_model, self.D))
 
         diff_m = X[::self.model_skip, self.Lidx] - self.Y
-        merr = self.Rm * np.linalg.norm(diff_m)**2
+        merr = np.linalg.norm(np.sqrt(self.Rm)*diff_m)**2
         merr/=(len(self.Lidx) * self.N_data)
 
         diff_f = X[1:] - self.disc_trapezoid(self.f, X, p, self.stim, self.t_model)
@@ -190,19 +201,66 @@ class Action:
                               self.t_model, self.rf, diff_f, self.stim)
 
         return np.concatenate((dmdx+dfdx, dfdp))
-    
+
     def _optimize(self, XP0):
-        res = ipopt.minimize_ipopt(self._action,
-                                   XP0,
-                                   jac=self._grad_action,
-                                   bounds=self.bounds,
-                                   options=self.opt_options)
-        xstar = res.get('x')
+        if self.optimizer.upper() == 'IPOPT':
+            res = ipopt.minimize_ipopt( self._action,
+                                        XP0,
+                                        jac=self._grad_action,
+                                        bounds=self.bounds,
+                                        options=self.opt_options)
+            xstar = res.get('x')
+
+        elif self.optimizer.upper() == 'SNOPT':
+            m = 1
+            n = len(self.bounds[:, 0])
+            x0 = np.zeros(m+n)
+            x0[:n] = XP0
+            J = np.zeros(n).reshape(1, -1)
+            J[0] = 100
+            bl    = -np.inf*np.ones(n+m)
+            bl[:n]=  self.bounds[:, 0]
+            bu    =  np.inf*np.ones(n+m)
+            bu[:n]=  self.bounds[:, 1]
+
+            res = snoptb(self._snopt_obj,
+                         self._snopt_con,
+                         nnObj = n,
+                         nnCon = 0,
+                         nnJac = 0,
+                         iObj = 0,
+                         x0 = x0,
+                         bl = bl,
+                         bu = bu,
+                         J = J,
+                         name = 'action',
+                         options = self.opt_options)
+            xstar = res.x[:-1]
         return xstar, self._action(xstar)
 
     def _min_A_step(self, beta_i):
         XPmin, Amin = self._optimize(self.minpaths)
         return XPmin, Amin
+
+
+    @staticmethod
+    def _snopt_con(mode,x,fCon,gCon,nState):
+        # No nonlinear constraints
+        return mode, fCon, gCon
+
+
+    def _snopt_obj(self, mode, x, fObj, gObj, nState):
+        fObj = 0.0
+        if mode == 0 or mode == 2:
+            fObj = self._action(x)
+
+        if mode == 0:
+            return mode, fObj
+
+        if mode == 1 or mode == 2:
+            gObj[:] = self._grad_action(x)
+
+        return mode, fObj, gObj
 
     @staticmethod
     @njit
