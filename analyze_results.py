@@ -95,10 +95,10 @@ if __name__ == '__main__':
     action = results['action']
     time_est = results['time']
 
-    if not isinstance(action, Iterable):
-        action = [action]
-        params = [params]
-        paths =  [paths]
+    if len(action.shape) == 1:
+        action = np.array([action])
+        params = np.array([params])
+        paths =  np.array([paths])
     dt = time_est[1]-time_est[0]
 
     if specs.get('stim_file') is not None:

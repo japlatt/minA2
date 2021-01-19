@@ -48,8 +48,8 @@ from utils import read_specs, read_bounds
 path_to_folder = 'Runs/NaKL/'
 path_to_specs = path_to_folder+'specs.yaml'
 path_to_params = path_to_folder+'params.txt'
-max_iter_per_step = 1000
-tol_per_step = 1e-8
+max_iter_per_step = 50000
+tol_per_step = 1e-6
 num_init_cond = 1
 ###################################
 
