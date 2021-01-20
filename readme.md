@@ -16,6 +16,11 @@ The simplest way to install these packages is to use anaconda using the followin
 6. pip3 install charm4py
 7. conda install -c anaconda pyyaml
 
+For those who wish to use the commercial solver SNOPT, which is much more powerful than ipopt
+1. https://ccom.ucsd.edu/~optimizers
+2. https://github.com/snopt/snopt-python
+
+### Troubleshoot Installation
 Note: charm4py requires c++11 (gcc > 4.8.1, 2011 release) support in order to compile as well as ld compiled with --sysroot enabled.  For those on the boom cluster this can present an issue because the compiler is (at the time of writing) over 10 years out of date.  Of course you can install [gcc](https://superuser.com/questions/986949/upgrading-gcc-for-a-specific-user-account) and [dependencies](https://gcc.gnu.org/wiki/InstallingGCC) and [binutils](https://www.gnu.org/software/binutils/) from source yourself.  If you have root access then obviously using the package manager is by the simplest options.  Without root access my workaround involved using conda to do the installation:
 1. conda install gcc_linux-64
 2. conda install gxx_linux-64
@@ -25,11 +30,12 @@ Note: charm4py requires c++11 (gcc > 4.8.1, 2011 release) support in order to co
 6. In ~/.bash_profile add "export PATH=/path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/bin:/path/to/anaconda/bin:/path/to/anaconda/compiler_compat:$PATH"
 7. Now run pip3 install charm4py<sup>[3]</sup>
 
-<a>1</a>: Highly recommend installing [miniconda](https://docs.conda.io/en/latest/miniconda.html) to manage packages.  Will have to have standard packages: numpy, scipy, sympy, matplotlib, pyyaml
+Note: SNOPT requires a version of glibc higher than 2.14
 
-<a>2</a>: Replace "/path/to/anaconda/" with the path to your anaconda/miniconda distribution.  For me that was "/home/jplatt/miniconda3/""
-
-<a>3</a>: I had a weird error when compiling charm4py that seems to be an error in the conda version of gcc.  If you get this same error abour redefining align_alloc then go to vim /path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/include/stdlib.h and comment out the whole function "static inline void* aligned_alloc (size_t al, size_t sz)".  Lines 513-523.
+For glibc install if you don't have root priveledges follow these [instructions](https://unix.stackexchange.com/questions/176489/how-to-update-glibc-to-2-14-in-centos-6-5)
+-install a glibc >= 2.14
+-only compiles if compilers are of similar generation
+-add path to libc.so.6 to LD_LIBRARY_PATH
 
 ### Workflow
 Follow these steps to get minA2 to work with your program (tldr modify: specs, params, def_dyn, run_da):
@@ -57,3 +63,11 @@ data_file        : name (not path) of data file in data folder, generate data cr
 stim_file        : name (not path) of stim file in data folder, if none comment out (str ending in npy or txt)
 
 Note: scientific notation must have decimal point and sign, ex: 1.e-3, 1.2e+4
+
+
+
+<a>1</a>: Highly recommend installing [miniconda](https://docs.conda.io/en/latest/miniconda.html) to manage packages.  Will have to have standard packages: numpy, scipy, sympy, matplotlib, pyyaml
+
+<a>2</a>: Replace "/path/to/anaconda/" with the path to your anaconda/miniconda distribution.  For me that was "/home/jplatt/miniconda3/""
+
+<a>3</a>: I had a weird error when compiling charm4py that seems to be an error in the conda version of gcc.  If you get this same error abour redefining align_alloc then go to vim /path/to/anaconda/x86_64-conda_cos6-linux-gnu/sysroot/usr/include/stdlib.h and comment out the whole function "static inline void* aligned_alloc (size_t al, size_t sz)".  Lines 513-523.
