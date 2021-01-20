@@ -48,18 +48,31 @@ Follow these steps to get minA2 to work with your program (tldr modify: specs, p
 
 ### Specs.yaml details
 name             : name for saving files (str)
+
 num_data         : number of data steps (int)
+
 start_data       : start index for data (int)
+
 time_step        : time steps of model per time step of data (int >= 1)
+
 num_dims         : number of state variables in model (int)
+
 num_par          : number of parameters in the model to estimate (int)
+
 obs_dim          : observed dimensions ex: [0], [0, 3, 5] or -1 means all observed (list or -1)
+
 RM               : measurement error value, inverse of variance of measurement noise (list or int or float)
+
 RF0              : model error init cond (list or int or float)
+
 alpha            : Rf = RF0 * alpha**beta (float or int)
+
 max_beta         : beta = 1,2,3...,max_beta (int)
+
 data_folder      : path to data folder, can be relative from run_da.py (str)
+
 data_file        : name (not path) of data file in data folder, generate data creates file with this name (str ending in npy or txt)
+
 stim_file        : name (not path) of stim file in data folder, if none comment out (str ending in npy or txt)
 
 Note: scientific notation must have decimal point and sign, ex: 1.e-3, 1.2e+4
