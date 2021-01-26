@@ -95,7 +95,7 @@ if __name__ == '__main__':
     action = results['action']
     time_est = results['time']
 
-    if len(action.shape) == 1:
+    if not isinstance(action[0], Iterable):
         action = np.array([action])
         params = np.array([params])
         paths =  np.array([paths])

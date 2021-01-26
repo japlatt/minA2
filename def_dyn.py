@@ -26,26 +26,8 @@ def dynamics(x, t, p, stim = None):
     Returns:
         sympy Matrix containing dx/dt
     '''
-    Cm, g_Na, g_K, g_L, E_Na, E_K, E_L, vm, vh, vn, dvm, dvh, dvn, tm0, tm1, th0, th1, tn0, tn1 = p
-
-    V, m, h, n = x
-
-    dvdt = -1/Cm * (g_Na*m**3*h*(V - E_Na) + g_K*n**4*(V - E_K) +
-                    g_L*(V - E_L) - stim)
-
-    xm = 0.5*(1+tanh((V - vm)/dvm))
-    tm = tm0 + tm1*(1 - tanh((V - vm)/dvm)**2)
-    dmdt = (xm - m)/tm
-
-    xh = 0.5*(1+tanh((V - vh)/dvh))
-    th = th0 + th1*(1 - tanh((V - vh)/dvh)**2)
-    dhdt = (xh - h)/th
-
-    xn = 0.5*(1+tanh((V - vn)/dvn))
-    tn = tn0 + tn1*(1 - tanh((V - vn)/dvn)**2)
-    dndt = (xn - n)/tn
-
-    return Matrix([dvdt, dmdt, dhdt, dndt])
+    dxdt = None
+    return Matrix([dxdt])
 
 
 ##########################################
@@ -62,7 +44,7 @@ def get_dynamics(specs):
         fjacx   : df/dx
         fjacp   : df/dp
     '''
-    func = dynamics # can change to point to different functions
+    func = NaKL # can change to point to different functions
 
     num_vars = specs['num_dims']
     num_pars = specs['num_par']
@@ -99,3 +81,26 @@ def L96(x, t, p, stim = None):
     dxdt[-1] = (x[0] - x[-3])*x[-2]-x[-1]
     dxdt = dxdt + p[0]*ones(1, D)
     return Matrix([dxdt])
+
+
+def NaKL(x, t, p, stim = None):
+    Cm, g_Na, g_K, g_L, E_Na, E_K, E_L, vm, vh, vn, dvm, dvh, dvn, tm0, tm1, th0, th1, tn0, tn1 = p
+
+    V, m, h, n = x
+
+    dvdt = -1/Cm * (g_Na*m**3*h*(V - E_Na) + g_K*n**4*(V - E_K) +
+                    g_L*(V - E_L) - stim)
+
+    xm = 0.5*(1+tanh((V - vm)/dvm))
+    tm = tm0 + tm1*(1 - tanh((V - vm)/dvm)**2)
+    dmdt = (xm - m)/tm
+
+    xh = 0.5*(1+tanh((V - vh)/dvh))
+    th = th0 + th1*(1 - tanh((V - vh)/dvh)**2)
+    dhdt = (xh - h)/th
+
+    xn = 0.5*(1+tanh((V - vn)/dvn))
+    tn = tn0 + tn1*(1 - tanh((V - vn)/dvn)**2)
+    dndt = (xn - n)/tn
+
+    return Matrix([dvdt, dmdt, dhdt, dndt])
