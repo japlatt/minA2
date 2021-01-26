@@ -43,8 +43,8 @@ Follow these steps to get minA2 to work with your program (tldr modify: specs, p
 2. Create a specs.yaml and params.txt file.  These files can reside anywhere you just have to specify the path to them in run_da.py.  The specs.yaml file should have the fields: name, num_data, start_data, time_step, num_dims, num_par, obs_dim, RM, RF0, alpha, max_beta, data_folder, data_file.  The params file should be a list of bounds in format "lower, upper" for each of the state variables (first) and the parameters (second).  See the example for more details.
 3. If running a twin experiment set the options in generate_data.py and then execute it to create data.  Be sure to have a stim file if needed.
 4. If not running a twin experiment then set data with the filename and location specified in the specs file
-5. Finally call run_da.py using the charm4py initialization.  This will output the file name_results.npz in the data_folder specified.
-6. The script analyze_results.py will take the path_to_specs specified in run_da.py and analyze the data found in the data folder.  You should call it with the signature python analyze_results.py -np "num_pred" to have the script predict forward in time and compare.
+5. Finally call run_da.py using the charm4py initialization.  This will output the file name_results.npz in the data_folder specified.  If num_init_cond is 1 then simply run "python run_da.py"
+6. The script analyze_results.py will take the path_to_specs specified in run_da.py and analyze the data found in the data folder.  You should call it with the signature "python analyze_results.py -np 'num_pred'" to have the script predict forward in time and compare.  Replace num_pred with the number of time steps to compare for prediction.
 
 ### Specs.yaml details
 name             : name for saving files (str)
