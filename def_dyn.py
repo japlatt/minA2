@@ -44,7 +44,7 @@ def get_dynamics(specs):
         fjacx   : df/dx
         fjacp   : df/dp
     '''
-    func = NaKL # can change to point to different functions
+    func = dynamics # can change to point to different functions
 
     num_vars = specs['num_dims']
     num_pars = specs['num_par']
