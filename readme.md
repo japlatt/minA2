@@ -75,6 +75,8 @@ data_file        : name (not path) of data file in data folder, generate data cr
 
 stim_file        : name (not path) of stim file in data folder, if none comment out (str ending in npy or txt)
 
+optimizer        : 'SNOPT' or 'IPOPT'
+
 Note: scientific notation must have decimal point and sign, ex: 1.e-3, 1.2e+4
 
 
