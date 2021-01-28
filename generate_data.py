@@ -44,18 +44,18 @@ if __name__ == '__main__':
         stim = np.empty(num_data)
 
     time_arr = np.linspace(0, num_data*dt, num_data)
-    sol = np.zeros((num_data+1, specs['num_dims']))
+    sol = np.zeros((num_data, specs['num_dims']))
     sol[0] = x0
-    for i, t in enumerate(time_arr, 1):
+    for i, t in enumerate(time_arr[1:], 1):
         sol[i] = RK4(f, sol[i-1], t, dt, params = (p, stim[i-1]))
 
-    plt.plot(time_arr, sol[:-1, 0])
+    plt.plot(time_arr, sol[:, 0])
     plt.show()
 
     obs_dim = specs['obs_dim'] if specs['obs_dim'] != -1 else np.arange(specs['num_dims'])
     np.save(specs['data_folder']+specs['data_file'],
-               np.vstack((time_arr, sol[:-1].T[obs_dim]+np.random.normal(0, noise_std, (sol[:-1].T[obs_dim].shape)))).T)
-    np.save(specs['data_folder']+'all_'+specs['data_file'], np.vstack((time_arr, sol[:-1].T)).T)
+               np.vstack((time_arr, sol.T[obs_dim]+np.random.normal(0, noise_std, (sol.T[obs_dim].shape)))).T)
+    np.save(specs['data_folder']+'all_'+specs['data_file'], np.vstack((time_arr, sol.T)).T)
     
     
 
